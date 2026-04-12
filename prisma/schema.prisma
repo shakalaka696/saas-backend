@@ -1,0 +1,52 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
+}
+
+// 1. Roles Definition
+enum Role {
+  ADMIN
+  USER
+}
+
+// 2. Tenant Model (The Organization/Company)
+model Tenant {
+  id        String   @id @default(uuid())
+  name      String
+  users     User[]
+  createdAt DateTime @default(now())
+}
+
+// 3. User Model (Belongs to a Tenant)
+model User {
+  id            String         @id @default(uuid())
+  email         String         @unique
+  password      String
+  role          Role           @default(USER)
+  
+  // Multi-tenancy link
+  tenantId      String
+  tenant        Tenant         @relation(fields: [tenantId], references: [id])
+  
+  notifications Notification[]
+  createdAt     DateTime       @default(now())
+}
+
+// 4. Notification Model (Belongs to a User and a Tenant)
+model Notification {
+  id        String   @id @default(uuid())
+  message   String
+  status    String   @default("PENDING") // PENDING, COMPLETED, FAILED
+  
+  // Links
+  userId    String
+  user      User     @relation(fields: [userId], references: [id])
+  
+  tenantId  String   // Every resource should know which tenant it belongs to
+  createdAt DateTime @default(now())
+}
