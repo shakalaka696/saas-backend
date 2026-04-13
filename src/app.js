@@ -9,7 +9,7 @@ const app = express();
 app.use(morgan('dev'));
 app.use(express.json());
 
-// Routes (You will create these files next)
+// API routes
 app.use('/api/auth', require('./routes/auth.routes'));
 app.use('/api/notifications', require('./routes/notification.routes'));
 app.use('/api/users', require('./routes/user.routes'));
