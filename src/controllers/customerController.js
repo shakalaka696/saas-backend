@@ -39,20 +39,45 @@ exports.getCustomerById = async (req, res) => {
 };
 
 // AC3: Delete Customer
+
 exports.deleteCustomer = async (req, res) => {
   try {
     const { id } = req.params;
-    const tenantId = req.user.tenantId;
+    const jobRepo = AppDataSource.getRepository("CampaignJob");
     const customerRepo = AppDataSource.getRepository("Customer");
 
-    const result = await customerRepo.delete({ id, tenantId });
+    // 1. Delete all jobs linked to this customer first
+    await jobRepo.delete({ customerId: id });
+
+    // 2. Now delete the customer
+    const result = await customerRepo.delete({ 
+      id: id, 
+      tenantId: req.user.tenantId 
+    });
 
     if (result.affected === 0) {
-      return res.status(404).json({ message: "Customer not found or already deleted" });
+      return res.status(404).json({ message: "Customer not found" });
     }
 
-    res.status(200).json({ message: "Customer deleted successfully" });
+    res.json({ message: "Customer and history deleted successfully" });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
 };
+// exports.deleteCustomer = async (req, res) => {
+//   try {
+//     const { id } = req.params;
+//     const tenantId = req.user.tenantId;
+//     const customerRepo = AppDataSource.getRepository("Customer");
+
+//     const result = await customerRepo.delete({ id, tenantId });
+
+//     if (result.affected === 0) {
+//       return res.status(404).json({ message: "Customer not found or already deleted" });
+//     }
+
+//     res.status(200).json({ message: "Customer deleted successfully" });
+//   } catch (err) {
+//     res.status(500).json({ error: err.message });
+//   }
+// };

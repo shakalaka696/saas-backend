@@ -7,7 +7,6 @@ const TenantSchema = new EntitySchema({
   columns: {
     id: { primary: true, type: "uuid", generated: "uuid" },
     name: { type: "varchar" },
-    // Adding the timestamp as per PDF
     createdAt: { type: "timestamp", createDate: true } 
   },
   relations: {
@@ -59,7 +58,7 @@ const CustomerSchema = new EntitySchema({
     firstName: { type: "varchar" }, 
     lastName: { type: "varchar" },  
     email: { type: "varchar" },
-    isVerified: { type: "boolean", default: false }, // Added for Phase 3 OTP
+    isVerified: { type: "boolean", default: false }, 
     tenantId: { type: "uuid" },
     createdAt: { type: "timestamp", createDate: true }
   },
@@ -112,7 +111,7 @@ const SegmentSchema = new EntitySchema({
       type: "many-to-many",
       target: "Customer",
       joinTable: {
-        name: "segment_customers", // This is the junction table from your PDF
+        name: "segment_customers", // This is the junction table 
         joinColumn: { name: "segmentId", referencedColumnName: "id" },
         inverseJoinColumn: { name: "customerId", referencedColumnName: "id" }
       }

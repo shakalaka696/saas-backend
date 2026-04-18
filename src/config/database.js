@@ -5,7 +5,7 @@ const { TenantSchema, AdminSchema, CustomerSchema, OTPSchema, SegmentSchema, Ema
 const AppDataSource = new DataSource({
   type: "postgres",
   url: process.env.DATABASE_URL,
-  synchronize: true, // This builds the tables for you!
+  synchronize: true, 
   ssl: { rejectUnauthorized: false },
   entities : [TenantSchema, AdminSchema, CustomerSchema, OTPSchema, SegmentSchema, EmailCampaignSchema, CampaignJobSchema]
 });

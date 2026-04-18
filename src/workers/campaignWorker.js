@@ -15,7 +15,7 @@ const transporter = nodemailer.createTransport({
 const redisConfig = { connection: { host: '127.0.0.1', port: 6379 } };
 
 // 2. Define the Worker
-const campaignWorker = new Worker('campaignQueue', async (job) => {
+const campaignWorker = new Worker('campaignQueueV2', async (job) => {
   const { jobId, email, subject, body, campaignId } = job.data;
   const jobRepo = AppDataSource.getRepository("CampaignJob");
   const campaignRepo = AppDataSource.getRepository("EmailCampaign");
@@ -56,7 +56,13 @@ const campaignWorker = new Worker('campaignQueue', async (job) => {
       error: error.message 
     });
   }
-}, redisConfig);
+}, { 
+  connection: { host: '127.0.0.1', port: 6379 }, // This replaces your old redisConfig
+  limiter: {
+    max: 1,         // Process 1 job
+    duration: 7000  // Every 5 seconds
+  }
+});
 
 console.log('🚀 Campaign Worker is running and watching the queue...');
 

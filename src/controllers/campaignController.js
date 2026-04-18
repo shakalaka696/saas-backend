@@ -4,12 +4,18 @@ const { campaignQueue } = require('../queues/campaignQueue'); // We will create 
 // C1: Create Campaign
 exports.createCampaign = async (req, res) => {
   try {
-    const { name, subject, body, segmentIds } = req.body;
+    // 1. Destructure with a fallback to an empty array []
+    const { name, subject, body, segmentIds = [] } = req.body; 
+
     const campaignRepo = AppDataSource.getRepository("EmailCampaign");
     const segmentRepo = AppDataSource.getRepository("Segment");
 
-    // Find the segments to link
-    const segments = await segmentRepo.findByIds(segmentIds);
+    let segments = [];
+    
+    // 2. Only search for segments if segmentIds has actual data
+    if (segmentIds && segmentIds.length > 0) {
+      segments = await segmentRepo.findByIds(segmentIds);
+    }
 
     const campaign = campaignRepo.create({
       name,
@@ -17,15 +23,40 @@ exports.createCampaign = async (req, res) => {
       body,
       tenantId: req.user.tenantId,
       createdById: req.user.id,
-      segments: segments // TypeORM handles the 'campaign_segments' table
+      segments: segments // This will now be an empty array instead of undefined
     });
 
     await campaignRepo.save(campaign);
     res.status(201).json(campaign);
   } catch (err) {
+    console.error("Create Campaign Error:", err);
     res.status(500).json({ error: err.message });
   }
 };
+// exports.createCampaign = async (req, res) => {
+//   try {
+//     const { name, subject, body, segmentIds } = req.body;
+//     const campaignRepo = AppDataSource.getRepository("EmailCampaign");
+//     const segmentRepo = AppDataSource.getRepository("Segment");
+
+//     // Find the segments to link
+//     const segments = await segmentRepo.findByIds(segmentIds);
+
+//     const campaign = campaignRepo.create({
+//       name,
+//       subject,
+//       body,
+//       tenantId: req.user.tenantId,
+//       createdById: req.user.id,
+//       segments: segments // TypeORM handles the 'campaign_segments' table
+//     });
+
+//     await campaignRepo.save(campaign);
+//     res.status(201).json(campaign);
+//   } catch (err) {
+//     res.status(500).json({ error: err.message });
+//   }
+// };
 
 // C2: Execute Campaign (The Execution Flow from your PDF)
 

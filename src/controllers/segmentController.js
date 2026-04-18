@@ -74,31 +74,59 @@ exports.deleteSegment = async (req, res) => {
 };
 
 // S6: Add Customer to Segment
+
 exports.addCustomerToSegment = async (req, res) => {
   try {
+    const { id } = req.params;
+    const { customerIds } = req.body; // Frontend sends "customerIds" as an array
+
     const segmentRepo = AppDataSource.getRepository("Segment");
     const customerRepo = AppDataSource.getRepository("Customer");
 
     const segment = await segmentRepo.findOne({
-      where: { id: req.params.id, tenantId: req.user.tenantId },
+      where: { id, tenantId: req.user.tenantId },
       relations: ["customers"]
     });
 
-    const customer = await customerRepo.findOne({
-      where: { id: req.body.customerId, tenantId: req.user.tenantId }
-    });
+    if (!segment) return res.status(404).json({ message: "Segment not found" });
 
-    if (segment && customer) {
-      // Add to array - TypeORM handles the bridge table automatically
-      segment.customers.push(customer);
-      await segmentRepo.save(segment);
-      return res.json({ message: "Customer added to segment" });
-    }
-    res.status(404).json({ message: "Segment or Customer not found" });
+    // Find all customers in the array
+    const newCustomers = await customerRepo.findByIds(customerIds);
+    
+    // Add them to the existing list (avoiding duplicates)
+    segment.customers = [...segment.customers, ...newCustomers];
+    
+    await segmentRepo.save(segment);
+    res.json({ message: "Customers added successfully" });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
 };
+// exports.addCustomerToSegment = async (req, res) => {
+//   try {
+//     const segmentRepo = AppDataSource.getRepository("Segment");
+//     const customerRepo = AppDataSource.getRepository("Customer");
+
+//     const segment = await segmentRepo.findOne({
+//       where: { id: req.params.id, tenantId: req.user.tenantId },
+//       relations: ["customers"]
+//     });
+
+//     const customer = await customerRepo.findOne({
+//       where: { id: req.body.customerId, tenantId: req.user.tenantId }
+//     });
+
+//     if (segment && customer) {
+//       // Add to array - TypeORM handles the bridge table automatically
+//       segment.customers.push(customer);
+//       await segmentRepo.save(segment);
+//       return res.json({ message: "Customer added to segment" });
+//     }
+//     res.status(404).json({ message: "Segment or Customer not found" });
+//   } catch (err) {
+//     res.status(500).json({ error: err.message });
+//   }
+// };
 
 // S7: Remove Customer from Segment
 exports.removeCustomerFromSegment = async (req, res) => {

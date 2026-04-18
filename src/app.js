@@ -1,4 +1,5 @@
 const express = require('express');
+const cors = require('cors');
 // const { AppDataSource } = require('./config/database');
 
 
@@ -10,6 +11,13 @@ const adminRoutes = require('./routes/adminRoutes');
 
 
 const app = express();
+
+app.use(cors({
+  origin: 'http://localhost:5173', // your frontend URL
+  methods: ['GET', 'POST', 'PUT', 'DELETE'],
+  allowedHeaders: ['Content-Type', 'Authorization'],
+}));
+
 app.use(express.json()); 
 
 
