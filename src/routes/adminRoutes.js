@@ -33,12 +33,13 @@ router.delete('/campaigns/:id', campaignController.deleteCampaign);     // C5: D
 
 // Segment Association
 router.post('/campaigns/:id/segments', campaignController.addSegmentToCampaign); // C6
-router.delete('/campaigns/:id/segments/:segmentId', campaignController.removeSegmentFromCampaign); // C7
+router.delete('/campaigns/:id/segments', campaignController.removeSegmentFromCampaign);
+// router.delete('/campaigns/:id/segments/:segmentId', campaignController.removeSegmentFromCampaign); // C7
 
 // Execution
 router.post('/campaigns/:id/execute', campaignController.executeCampaign); // Trigger Send C8
 
 // C9: Campaign Summary/Analytics
-router.get('/campaigns/:id/summary', campaignController.getCampaignSummary);
+router.get('/campaigns/:id/status', campaignController.getCampaignSummary);
 
 module.exports = router;

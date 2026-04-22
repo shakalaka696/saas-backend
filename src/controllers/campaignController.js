@@ -164,10 +164,12 @@ exports.deleteCampaign = async (req, res) => {
 };
 
 // C6: Add Segment to Campaign
+
 exports.addSegmentToCampaign = async (req, res) => {
   try {
-    const { id } = req.params; // Campaign ID
-    const { segmentId } = req.body;
+    const { id } = req.params; 
+    const { segmentIds } = req.body; // 1. Change to plural to match Frontend
+    
     const campaignRepo = AppDataSource.getRepository("EmailCampaign");
     const segmentRepo = AppDataSource.getRepository("Segment");
 
@@ -176,46 +178,115 @@ exports.addSegmentToCampaign = async (req, res) => {
       relations: ["segments"]
     });
 
-    const segment = await segmentRepo.findOne({
-      where: { id: segmentId, tenantId: req.user.tenantId }
-    });
+    if (!campaign) return res.status(404).json({ message: "Campaign not found" });
 
-    if (campaign && segment) {
-      // Check if already linked to avoid duplicates
-      const exists = campaign.segments.find(s => s.id === segmentId);
-      if (!exists) {
-        campaign.segments.push(segment);
-        await campaignRepo.save(campaign);
+    // 2. Loop through every ID sent by the Frontend
+    for (const sId of segmentIds) {
+      const segment = await segmentRepo.findOne({
+        where: { id: sId, tenantId: req.user.tenantId }
+      });
+
+      if (segment) {
+        // 3. Avoid duplicates
+        const exists = campaign.segments.find(s => s.id === sId);
+        if (!exists) {
+          campaign.segments.push(segment);
+        }
       }
-      return res.json({ message: "Segment linked to campaign" });
     }
-    res.status(404).json({ message: "Campaign or Segment not found" });
+
+    // 4. Save the campaign ONCE after adding all segments
+    await campaignRepo.save(campaign);
+    
+    return res.json({ message: "Segments linked to campaign" });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
 };
+// exports.addSegmentToCampaign = async (req, res) => {
+//   try {
+//     const { id } = req.params; // Campaign ID
+//     const { segmentId } = req.body;
+//     const campaignRepo = AppDataSource.getRepository("EmailCampaign");
+//     const segmentRepo = AppDataSource.getRepository("Segment");
+
+//     const campaign = await campaignRepo.findOne({
+//       where: { id, tenantId: req.user.tenantId },
+//       relations: ["segments"]
+//     });
+
+//     const segment = await segmentRepo.findOne({
+//       where: { id: segmentId, tenantId: req.user.tenantId }
+//     });
+
+//     if (campaign && segment) {
+//       // Check if already linked to avoid duplicates
+//       const exists = campaign.segments.find(s => s.id === segmentId);
+//       if (!exists) {
+//         campaign.segments.push(segment);
+//         await campaignRepo.save(campaign);
+//       }
+//       return res.json({ message: "Segment linked to campaign" });
+//     }
+//     res.status(404).json({ message: "Campaign or Segment not found" });
+//   } catch (err) {
+//     res.status(500).json({ error: err.message });
+//   }
+// };
 
 // C7: Remove Segment from Campaign
+
 exports.removeSegmentFromCampaign = async (req, res) => {
   try {
-    const { id, segmentId } = req.params;
+    const { id } = req.params; // Campaign ID from URL
+    const { segmentIds } = req.body; // Array of IDs from the Frontend body
+    
     const campaignRepo = AppDataSource.getRepository("EmailCampaign");
 
+    // 1. Load the campaign with its existing segments
     const campaign = await campaignRepo.findOne({
       where: { id, tenantId: req.user.tenantId },
       relations: ["segments"]
     });
 
     if (campaign) {
-      campaign.segments = campaign.segments.filter(s => s.id !== segmentId);
+      // 2. Filter out all segments whose ID is in the segmentIds array
+      // We use .includes() to check if the current segment should be removed
+      campaign.segments = campaign.segments.filter(
+        segment => !segmentIds.includes(segment.id)
+      );
+
+      // 3. Save the updated list back to the database
       await campaignRepo.save(campaign);
-      return res.json({ message: "Segment unlinked from campaign" });
+      
+      return res.json({ message: "Segments unlinked from campaign" });
     }
+    
     res.status(404).json({ message: "Campaign not found" });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
 };
+// exports.removeSegmentFromCampaign = async (req, res) => {
+//   try {
+//     const { id, segmentId } = req.params;
+//     const campaignRepo = AppDataSource.getRepository("EmailCampaign");
+
+//     const campaign = await campaignRepo.findOne({
+//       where: { id, tenantId: req.user.tenantId },
+//       relations: ["segments"]
+//     });
+
+//     if (campaign) {
+//       campaign.segments = campaign.segments.filter(s => s.id !== segmentId);
+//       await campaignRepo.save(campaign);
+//       return res.json({ message: "Segment unlinked from campaign" });
+//     }
+//     res.status(404).json({ message: "Campaign not found" });
+//   } catch (err) {
+//     res.status(500).json({ error: err.message });
+//   }
+// };
 
 // C8
 exports.executeCampaign = async (req, res) => {
@@ -225,7 +296,7 @@ exports.executeCampaign = async (req, res) => {
     const campaignRepo = AppDataSource.getRepository("EmailCampaign");
     const jobRepo = AppDataSource.getRepository("CampaignJob");
 
-    // 1. Load Campaign + Segments + Customers (Strictly according to your diagram)
+    // 1. Load Campaign + Segments + Customers 
     const campaign = await campaignRepo.findOne({
       where: { id, tenantId },
       relations: ["segments", "segments.customers"]
@@ -244,6 +315,7 @@ exports.executeCampaign = async (req, res) => {
         }
       });
     });
+
 
     if (customerMap.size === 0) {
       return res.status(400).json({ message: "No verified customers found in selected segments." });
@@ -286,39 +358,26 @@ exports.executeCampaign = async (req, res) => {
 };
 
 // C9: Get Campaign Execution Summary
+
 exports.getCampaignSummary = async (req, res) => {
   try {
     const { id } = req.params;
     const jobRepo = AppDataSource.getRepository("CampaignJob");
     const campaignRepo = AppDataSource.getRepository("EmailCampaign");
 
-    // 1. Get the Campaign basic info
-    const campaign = await campaignRepo.findOne({
-      where: { id, tenantId: req.user.tenantId }
-    });
-
+    const campaign = await campaignRepo.findOne({ where: { id, tenantId: req.user.tenantId } });
     if (!campaign) return res.status(404).json({ message: "Campaign not found" });
 
-    // 2. Get all jobs associated with this campaign
-    const jobs = await jobRepo.find({
-      where: { campaignId: id },
-      relations: ["customer"], // Show which customer got which email
-      order: { sentAt: "DESC" }
-    });
+    const jobs = await jobRepo.find({ where: { campaignId: id } });
 
-    // 3. Calculate Final Stats
+    // UPDATE THIS BLOCK TO MATCH FRONTEND NAMES:
     const summary = {
+      total: jobs.length,                       // Matches status.total
+      sent: jobs.filter(j => j.status === 'SENT').length,     // Matches status.sent
+      failed: jobs.filter(j => j.status === 'FAILED').length, // Matches status.failed
+      pending: jobs.filter(j => j.status === 'PENDING').length, // Matches status.pending
       campaignName: campaign.name,
-      status: campaign.status,
-      totalRecipients: jobs.length,
-      sentCount: jobs.filter(j => j.status === 'SENT').length,
-      failedCount: jobs.filter(j => j.status === 'FAILED').length,
-      details: jobs.map(j => ({
-        customer: j.customer.email,
-        status: j.status,
-        sentAt: j.sentAt,
-        error: j.error
-      }))
+      status: campaign.status
     };
 
     res.json(summary);
@@ -326,3 +385,43 @@ exports.getCampaignSummary = async (req, res) => {
     res.status(500).json({ error: err.message });
   }
 };
+// exports.getCampaignSummary = async (req, res) => {
+//   try {
+//     const { id } = req.params;
+//     const jobRepo = AppDataSource.getRepository("CampaignJob");
+//     const campaignRepo = AppDataSource.getRepository("EmailCampaign");
+
+//     // 1. Get the Campaign basic info
+//     const campaign = await campaignRepo.findOne({
+//       where: { id, tenantId: req.user.tenantId }
+//     });
+
+//     if (!campaign) return res.status(404).json({ message: "Campaign not found" });
+
+//     // 2. Get all jobs associated with this campaign
+//     const jobs = await jobRepo.find({
+//       where: { campaignId: id },
+//       relations: ["customer"], // Show which customer got which email
+//       order: { sentAt: "DESC" }
+//     });
+
+//     // 3. Calculate Final Stats
+//     const summary = {
+//       campaignName: campaign.name,
+//       status: campaign.status,
+//       totalRecipients: jobs.length,
+//       sentCount: jobs.filter(j => j.status === 'SENT').length,
+//       failedCount: jobs.filter(j => j.status === 'FAILED').length,
+//       details: jobs.map(j => ({
+//         customer: j.customer.email,
+//         status: j.status,
+//         sentAt: j.sentAt,
+//         error: j.error
+//       }))
+//     };
+
+//     res.json(summary);
+//   } catch (err) {
+//     res.status(500).json({ error: err.message });
+//   }
+// };

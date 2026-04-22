@@ -55,12 +55,16 @@ const campaignWorker = new Worker('campaignQueueV2', async (job) => {
       status: 'FAILED', 
       error: error.message 
     });
+
+    // 🔥 THIS IS THE FIX: 
+    // You MUST throw the error here, otherwise BullMQ thinks it succeeded!
+    throw error;
   }
 }, { 
   connection: { host: '127.0.0.1', port: 6379 }, // This replaces your old redisConfig
   limiter: {
     max: 1,         // Process 1 job
-    duration: 7000  // Every 5 seconds
+    duration: 7000  // Every 7 seconds
   }
 });
 
